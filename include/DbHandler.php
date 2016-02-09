@@ -37,14 +37,17 @@ class DbHandler {
             // Generating API key
             $api_key = $this->generateApiKey();
 
+            if($this->isDeviceExists($device_id)){
+                $result = $this->updateUserByDevice($device_id, $name, $phone, $email, $password_hash, $api_key);
+            } else {
             // insert query
-            $stmt = $this->conn->prepare("INSERT INTO `user`(`name`, `phone`, `email`, `password`, `c_date`, `m_date`, `api_key`, `device_id`) VALUES (?,?,?,?,now(),now(),?,?)");
-            $stmt->bind_param("ssssss", $name, $phone, $email, $password_hash, $api_key, $device_id);
+                $stmt = $this->conn->prepare("INSERT INTO `user`(`name`, `phone`, `email`, `password`, `c_date`, `m_date`, `api_key`, `device_id`) VALUES (?,?,?,?,now(),now(),?,?)");
+                $stmt->bind_param("ssssss", $name, $phone, $email, $password_hash, $api_key, $device_id);
 
-            $result = $stmt->execute();
+                $result = $stmt->execute();
 
-            $stmt->close();
-
+                $stmt->close();
+            }
             // Check for successful insertion
             if ($result) {
                 // User successfully inserted
@@ -61,7 +64,38 @@ class DbHandler {
         return $response;
     }
 
-    /**
+    public function createBasicUser($device_id) {
+        $response = array();
+        if (!$this->isDeviceExists($device_id)) {
+        // insert query
+        $stmt = $this->conn->prepare("INSERT INTO `user`(`name`, `phone`, `email`, `password`, `c_date`, `m_date`, `api_key`, `device_id`) VALUES ('','','','',now(),now(),'',?)");
+        $stmt->bind_param("s", $device_id);
+        $result = $stmt->execute();
+        $stmt->close();
+            // Check for successful insertion
+            if ($result) {
+                // User successfully inserted
+                return USER_CREATED_SUCCESSFULLY;
+            } else {
+                // Failed to create user
+                return USER_CREATE_FAILED;
+            }
+        } else {
+            return DEVICE_ALREADY_EXISTED;
+        }
+        return $response;
+    }
+
+    public function updateUserByDevice($device_id, $name, $phone, $email, $password, $api_key) {
+        $stmt = $this->conn->prepare("UPDATE user set name = ?, phone = ?, email = ?, password=?, m_date=now(), api_key=? WHERE device_id = ?");
+        $stmt->bind_param("ssssss", $name, $phone, $email, $password, $api_key, $device_id);
+        $stmt->execute();
+        $num_affected_rows = $stmt->affected_rows;
+        $stmt->close();
+        return $num_affected_rows > 0;
+    }
+
+       /**
      * Checking user login
      * @param String $email User login email id
      * @param String $password User login password
@@ -103,13 +137,28 @@ class DbHandler {
     }
 
     /**
-     * Checking for duplicate user by email address
-     * @param String $email email to check in db
-     * @return boolean
-     */
+ * Checking for duplicate user by email address
+ * @param String $email email to check in db
+ * @return boolean
+ */
     private function isUserExists($email) {
         $stmt = $this->conn->prepare("SELECT id from user WHERE email = ?");
         $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $stmt->store_result();
+        $num_rows = $stmt->num_rows;
+        $stmt->close();
+        return $num_rows > 0;
+    }
+
+    /**
+     * Checking for duplicate user by device id
+     * @param String $device device to check in db
+     * @return boolean
+     */
+    private function isDeviceExists($device) {
+        $stmt = $this->conn->prepare("SELECT id from user WHERE device_id = ?");
+        $stmt->bind_param("s", $device);
         $stmt->execute();
         $stmt->store_result();
         $num_rows = $stmt->num_rows;
@@ -122,27 +171,123 @@ class DbHandler {
      * @param String $email User email id
      */
     public function getUserByEmail($email) {
-        $stmt = $this->conn->prepare("SELECT name, phone, email, c_date, m_date, api_key, device_id FROM user WHERE email = ?");
+        $stmt = $this->conn->prepare("SELECT id, name, phone, email, c_date, m_date, api_key, device_id FROM user WHERE email = ?");
         $stmt->bind_param("s", $email);
         if ($stmt->execute()) {
-            // $user = $stmt->get_result()->fetch_assoc();
-            $stmt->bind_result($name, $phone, $email, $c_date, $m_date, $api_key, $device_id);
-            $stmt->fetch();
-            $user = array();
-            $user["name"] = $name;
-            $user["phone"] = $phone;
-            $user["email"] = $email;
-            $user["c_date"] = $c_date;
-            $user["m_date"] = $m_date;
-            $user["api_key"] = $api_key;
-            $user["device_id"] = $device_id;
-            $stmt->close();
-            return $user;
+            $stmt->store_result();
+            $num_rows = $stmt->num_rows;
+            if($num_rows > 0){
+                // $user = $stmt->get_result()->fetch_assoc();
+                $stmt->bind_result($id, $name, $phone, $email, $c_date, $m_date, $api_key, $device_id);
+                $stmt->fetch();
+                $user = array();
+                $user["id"] = $id;
+                $user["name"] = $name;
+                $user["phone"] = $phone;
+                $user["email"] = $email;
+                $user["c_date"] = $c_date;
+                $user["m_date"] = $m_date;
+                $user["api_key"] = $api_key;
+                $user["device_id"] = $device_id;
+                $stmt->close();
+                return $user;
+            } else {
+                return NULL;
+            }
         } else {
             return NULL;
         }
     }
 
+    /**
+     * Fetching user by id
+     * @param String id
+     */
+    public function getUserById($userId) {
+        $stmt = $this->conn->prepare("SELECT id, name, phone, email, c_date, m_date, api_key, device_id FROM user WHERE id = ?");
+        $stmt->bind_param("s", $userId);
+        if ($stmt->execute()) {
+            $stmt->store_result();
+            $num_rows = $stmt->num_rows;
+            if($num_rows > 0){
+                // $user = $stmt->get_result()->fetch_assoc();
+                $stmt->bind_result($id, $name, $phone, $email, $c_date, $m_date, $api_key, $device_id);
+                $stmt->fetch();
+                $user = array();
+                $user["id"] = $id;
+                $user["name"] = $name;
+                $user["phone"] = $phone;
+                $user["email"] = $email;
+                $user["c_date"] = $c_date;
+                $user["m_date"] = $m_date;
+                $user["api_key"] = $api_key;
+                $user["device_id"] = $device_id;
+                $stmt->close();
+                return $user;
+            } else {
+                return NULL;
+            }
+        } else {
+            return NULL;
+        }
+    }
+
+    /**
+     * Fetching user by id
+     * @param String id
+     */
+    public function getUserByDevice($deviceId) {
+        $stmt = $this->conn->prepare("SELECT id, name, phone, email, c_date, m_date, api_key, device_id FROM user WHERE device_id = ?");
+        $stmt->bind_param("s", $deviceId);
+        if ($stmt->execute()) {
+            $stmt->store_result();
+            $num_rows = $stmt->num_rows;
+            if($num_rows > 0){
+                // $user = $stmt->get_result()->fetch_assoc();
+                $stmt->bind_result($id, $name, $phone, $email, $c_date, $m_date, $api_key, $device_id);
+                $stmt->fetch();
+                $user = array();
+                $user["id"] = $id;
+                $user["name"] = $name;
+                $user["phone"] = $phone;
+                $user["email"] = $email;
+                $user["c_date"] = $c_date;
+                $user["m_date"] = $m_date;
+                $user["api_key"] = $api_key;
+                $user["device_id"] = $device_id;
+                $stmt->close();
+                return $user;
+            } else {
+                return NULL;
+            }
+        } else {
+            return NULL;
+        }
+    }
+
+    /**
+     * Fetching all user
+     */
+    public function getAllUser() {
+        $stmt = $this->conn->prepare("SELECT * FROM user");
+        $stmt->execute();
+        $users = $stmt->get_result();
+        $stmt->close();
+        return $users;
+    }
+
+    /**
+     * Deleting a user
+     * @param String $task_id id of the task to delete
+     */
+    public function deleteUserById($user_id) {
+        $stmt = $this->conn->prepare("DELETE FROM user WHERE id = ?");
+        $stmt->bind_param("i",$user_id);
+        $stmt->execute();
+        $num_affected_rows = $stmt->affected_rows;
+        $stmt->close();
+        return $num_affected_rows > 0;
+    }
     /**
      * Fetching user api key
      * @param String $user_id user id primary key in user table
@@ -203,6 +348,153 @@ class DbHandler {
         return md5(uniqid(rand(), true));
     }
 
+    //----------------- Mall operations --------------------------
+    /**
+     * Fetching all mall
+     */
+    public function getAllMall() {
+        $stmt = $this->conn->prepare("SELECT * FROM mall");
+        $stmt->execute();
+        $users = $stmt->get_result();
+        $stmt->close();
+        return $users;
+    }
+
+    //----------------- Category operations --------------------------
+    /**
+     * Fetching all mall
+     */
+    public function getAllCategory() {
+        $stmt = $this->conn->prepare("SELECT * FROM category");
+        $stmt->execute();
+        $users = $stmt->get_result();
+        $stmt->close();
+        return $users;
+    }
+
+    //----------------- Shop operations --------------------------
+    /**
+     * Creating new shop
+     */
+    public function createShop($title, $number_shop, $main_phone, $extra_phone, $site, $desc, $userId, $categoryId, $mallId) {
+      // insert query
+      $stmt = $this->conn->prepare("INSERT INTO `shop`(`title`, `number_shop`, `main_phone`, `extra_phone`, `site`, `description`, `user_id`, `category_id`, `mall_id`, `c_date`, `m_date`) VALUES (?,?,?,?,?,?,?,?,?,now(),now())");
+      $stmt->bind_param("sssssssss", $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $userId, $categoryId, $mallId);
+      $result = $stmt->execute();
+      $stmt->close();
+      if ($result) {
+         // Shop successfully inserted
+         return USER_CREATED_SUCCESSFULLY;
+      } else {
+         // Failed to create shop
+         return USER_CREATE_FAILED;
+      }
+    }
+
+    /**
+     * Updating shop
+     */
+    public function updateShop($shop_id, $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $categoryId, $mallId) {
+        $stmt = $this->conn->prepare("UPDATE shop set title = ?, number_shop = ?, main_phone = ?, extra_phone=?, site=?, description=?, category_id=?, mall_id=?, m_date=now() WHERE id = ?");
+        $stmt->bind_param("sssssssss", $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $categoryId, $mallId, $shop_id);
+        $stmt->execute();
+        $num_affected_rows = $stmt->affected_rows;
+        $stmt->close();
+        return $num_affected_rows > 0;
+    }
+
+    /**
+     * Deleting shop
+     */
+    public function deleteShop($shop_id) {
+        $stmt = $this->conn->prepare("DELETE FROM shop WHERE id = ?");
+        $stmt->bind_param("i",$shop_id);
+        $stmt->execute();
+        $num_affected_rows = $stmt->affected_rows;
+        $stmt->close();
+        return $num_affected_rows > 0;
+    }
+
+    /**
+     * Fetching shops by user
+     */
+    public function findShopByUser($user_id) {
+        $stmt = $this->conn->prepare("SELECT * FROM shop WHERE user_id=?");
+        $stmt->bind_param("i",$user_id);
+        $stmt->execute();
+        $shops = $stmt->get_result();
+        $stmt->close();
+        return $shops;
+    }
+    /**
+     * Fetching shops by mall
+     */
+    public function findShopByMall($mall_id) {
+        $stmt = $this->conn->prepare("SELECT * FROM shop WHERE mall_id=?");
+        $stmt->bind_param("i",$mall_id);
+        $stmt->execute();
+        $shops = $stmt->get_result();
+        $stmt->close();
+        return $shops;
+    }
+    /**
+     * Fetching shops by category
+     */
+    public function findShopByCategory($category_id) {
+        $stmt = $this->conn->prepare("SELECT * FROM shop WHERE category_id=?");
+        $stmt->bind_param("i",$category_id);
+        $stmt->execute();
+        $shops = $stmt->get_result();
+        $stmt->close();
+        return $shops;
+    }
+    /**
+     * Fetching shops by title
+     */
+    public function findShopByTitle($title) {
+        $stmt = $this->conn->prepare("SELECT * FROM shop WHERE title LIKE '%$title%'");
+        $stmt->execute();
+        $shops = $stmt->get_result();
+        $stmt->close();
+        return $shops;
+    }
+
+    /**
+     * Fetching shop by id
+     */
+    public function findShopById($shop_id) {
+        $stmt = $this->conn->prepare("SELECT id, title, number_shop, main_phone, extra_phone, site, description, user_id, category_id, mall_id, c_date, m_date FROM shop WHERE id = ?");
+        $stmt->bind_param("s", $shop_id);
+        if ($stmt->execute()) {
+            $stmt->store_result();
+            $num_rows = $stmt->num_rows;
+            if($num_rows > 0){
+                $stmt->bind_result($id, $title, $number_shop, $main_phone, $extra_phone, $site, $description, $user_id, $category_id, $mall_id, $c_date, $m_date);
+                $stmt->fetch();
+                $shop = array();
+                $shop["id"] = $id;
+                $shop["title"] = $title;
+                $shop["number_shop"] = $number_shop;
+                $shop["main_phone"] = $main_phone;
+                $shop["extra_phone"] = $extra_phone;
+                $shop["site"] = $site;
+                $shop["description"] = $description;
+                $shop["user_id"] = $user_id;
+                $shop["category_id"] = $category_id;
+                $shop["mall_id"] = $mall_id;
+                $shop["c_date"] = $c_date;
+                $shop["m_date"] = $m_date;
+                $stmt->close();
+                return $shop;
+            } else {
+                return NULL;
+            }
+        } else {
+            return NULL;
+        }
+    }
+
+    //----------------- END Shop operations --------------------------
 }
 
 ?>
