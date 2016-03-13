@@ -143,7 +143,7 @@ $app->post('/login', function() use ($app) {
                 $user = $db->getUserByEmail($email);
 
                 if ($user != NULL) {
-                    $response["error"] = false;
+                    //$response["error"] = false;
                     $response['id'] = $user['id'];
                     $response['name'] = $user['name'];
                     $response['phone'] = $user['phone'];
@@ -312,8 +312,7 @@ $app->get('/malls', function() {
     $db = new DbHandler();
     // fetching all mall
     $result = $db->getAllMall();
-    $response["error"] = false;
-    $response["malls"] = array();
+    $response = array();
     // looping through result and preparing malls array
     while ($user = $result->fetch_assoc()) {
         $tmp = array();
@@ -324,7 +323,7 @@ $app->get('/malls', function() {
         $tmp["lng"] = $user["lng"];
         $tmp["c_date"] = $user["c_date"];
         $tmp["m_date"] = $user["m_date"];
-        array_push($response["malls"], $tmp);
+        array_push($response, $tmp);
     }
     echoRespnse(200, $response);
 });
@@ -508,8 +507,8 @@ $app->get('/findShopByMall', function() use ($app) {
     $response = array();
     $db = new DbHandler();
     $result = $db->findShopByMall($mallId);
-    $response["error"] = false;
-    $response["shops"] = array();
+    //$response["error"] = false;
+    $response = array();
     // looping through result and preparing malls array
     while ($shop = $result->fetch_assoc()) {
         $tmp = array();
@@ -525,7 +524,7 @@ $app->get('/findShopByMall', function() use ($app) {
         $tmp['mall_id'] = $shop['mall_id'];
         $tmp['c_date'] = $shop['c_date'];
         $tmp['m_date'] = $shop['m_date'];
-        array_push($response["shops"], $tmp);
+        array_push($response, $tmp);
     }
     echoRespnse(200, $response);
 });
