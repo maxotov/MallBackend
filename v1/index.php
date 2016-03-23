@@ -6,8 +6,6 @@
  * Time: 22:25
  * To change this template use File | Settings | File Templates.
  */
-header('Content-Type: text/html; charset=UTF-8');
-
 require_once '../include/DbHandler.php';
 require_once '../include/PassHash.php';
 require '.././libs/Slim/Slim.php';
@@ -313,18 +311,12 @@ $app->get('/malls', function() {
     $response = array();
     $db = new DbHandler();
     // fetching all mall
-
     $result = $db->getAllMall();
-  //  $response["error2"]="привет";
-    //$response["error"] = false;
-    //$response["malls"] = array();
-    $tt="";
+    $response["error"] = false;
+    $response["malls"] = array();
     // looping through result and preparing malls array
     while ($user = $result->fetch_assoc()) {
         $tmp = array();
-
-        $tt=$user["name"];
-
         $tmp["id"] = $user["id"];
         $tmp["name"] = $user["name"];
         $tmp["address"] = $user["address"];
@@ -332,9 +324,8 @@ $app->get('/malls', function() {
         $tmp["lng"] = $user["lng"];
         $tmp["c_date"] = $user["c_date"];
         $tmp["m_date"] = $user["m_date"];
-        array_push($response, $tmp);
+        array_push($response["malls"], $tmp);
     }
-
     echoRespnse(200, $response);
 });
 //----------- END MALL OPERATIONS---------------------------------------------------------------------
@@ -517,7 +508,8 @@ $app->get('/findShopByMall', function() use ($app) {
     $response = array();
     $db = new DbHandler();
     $result = $db->findShopByMall($mallId);
-
+    $response["error"] = false;
+    $response["shops"] = array();
     // looping through result and preparing malls array
     while ($shop = $result->fetch_assoc()) {
         $tmp = array();
@@ -533,7 +525,7 @@ $app->get('/findShopByMall', function() use ($app) {
         $tmp['mall_id'] = $shop['mall_id'];
         $tmp['c_date'] = $shop['c_date'];
         $tmp['m_date'] = $shop['m_date'];
-        array_push($response, $tmp);
+        array_push($response["shops"], $tmp);
     }
     echoRespnse(200, $response);
 });
@@ -651,22 +643,16 @@ function validateEmail($email) {
  * @param String $status_code Http response code
  * @param Int $response Json response
  */
-
 function echoRespnse($status_code, $response) {
     $app = \Slim\Slim::getInstance();
     // Http response code
     $app->status($status_code);
 
     // setting response content type to json
-    $app->contentType('application/json; charset=UTF-8');
+    $app->contentType('application/json');
 
-    $app->response()->header('Content-Type', 'application/json;charset=utf-8');
-
-    echo json_encode($response,JSON_UNESCAPED_UNICODE);
+    echo json_encode($response);
 }
-
-
-
 
 $app->run();
 ?>
