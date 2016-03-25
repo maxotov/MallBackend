@@ -378,7 +378,7 @@ class DbHandler {
      */
     public function createShop($title, $number_shop, $main_phone, $extra_phone, $site, $desc, $userId, $categoryId, $mallId) {
       // insert query
-      $stmt = $this->conn->prepare("INSERT INTO `shop`(`title`, `number_shop`, `main_phone`, `extra_phone`, `site`, `description`, `user_id`, `category_id`, `mall_id`, `c_date`, `m_date`) VALUES (?,?,?,?,?,?,?,?,?,now(),now())");
+      $stmt = $this->conn->prepare("INSERT INTO `shop`(`title`, `number_shop`, `main_phone`, `extra_phone`, `site`, `description`, `user_id`, `category_id`, `mall_id`, `c_date`, `m_date`, `view`) VALUES (?,?,?,?,?,?,?,?,?,now(),now(),0)");
       $stmt->bind_param("sssssssss", $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $userId, $categoryId, $mallId);
       $result = $stmt->execute();
       $stmt->close();
@@ -463,13 +463,13 @@ class DbHandler {
      * Fetching shop by id
      */
     public function findShopById($shop_id) {
-        $stmt = $this->conn->prepare("SELECT id, title, number_shop, main_phone, extra_phone, site, description, user_id, category_id, mall_id, c_date, m_date FROM shop WHERE id = ?");
+        $stmt = $this->conn->prepare("SELECT id, title, number_shop, main_phone, extra_phone, site, description, user_id, category_id, mall_id, c_date, m_date, view FROM shop WHERE id = ?");
         $stmt->bind_param("s", $shop_id);
         if ($stmt->execute()) {
             $stmt->store_result();
             $num_rows = $stmt->num_rows;
             if($num_rows > 0){
-                $stmt->bind_result($id, $title, $number_shop, $main_phone, $extra_phone, $site, $description, $user_id, $category_id, $mall_id, $c_date, $m_date);
+                $stmt->bind_result($id, $title, $number_shop, $main_phone, $extra_phone, $site, $description, $user_id, $category_id, $mall_id, $c_date, $m_date, $view);
                 $stmt->fetch();
                 $shop = array();
                 $shop["id"] = $id;
@@ -484,6 +484,7 @@ class DbHandler {
                 $shop["mall_id"] = $mall_id;
                 $shop["c_date"] = $c_date;
                 $shop["m_date"] = $m_date;
+                $shop["view"] = $view;
                 $stmt->close();
                 return $shop;
             } else {
