@@ -327,6 +327,33 @@ $app->get('/malls', function() {
     }
     echoRespnse(200, $response);
 });
+
+/**
+ * get shop by id
+ */
+$app->get('/getMallById', function() use ($app) {
+    // check for required params
+    verifyRequiredParams(array('mall_id'));
+    // reading post params
+    $shopId = $app->request()->get('mall_id');
+    $response = array();
+    $db = new DbHandler();
+    $shop = $db->findMallById($shopId);
+    if ($shop != NULL) {
+        $response['id'] = $shop['id'];
+        $response['name'] = $shop['name'];
+        $response['address'] = $shop['address'];
+        $response['lat'] = $shop['lat'];
+        $response['lng'] = $shop['lng'];
+        $response['c_date'] = $shop['c_date'];
+        $response['m_date'] = $shop['m_date'];
+    } else {
+        // unknown error occurred
+        $response['error'] = true;
+        $response['message'] = "An error occurred. No such shop by primary key ".$shopId;
+    }
+    echoRespnse(200, $response);
+});
 //----------- END MALL OPERATIONS---------------------------------------------------------------------
 
 //----------- BEGIN CATEGORY OPERATIONS---------------------------------------------------------------------
@@ -335,8 +362,8 @@ $app->get('/categories', function() {
     $db = new DbHandler();
     // fetching all mall
     $result = $db->getAllCategory();
-    $response["error"] = false;
-    $response["cats"] = array();
+    //$response["error"] = false;
+    $response = array();
     // looping through result and preparing malls array
     while ($cat = $result->fetch_assoc()) {
         $tmp = array();
@@ -344,7 +371,28 @@ $app->get('/categories', function() {
         $tmp["title"] = $cat["title"];
         $tmp["c_date"] = $cat["c_date"];
         $tmp["m_date"] = $cat["m_date"];
-        array_push($response["cats"], $tmp);
+        array_push($response, $tmp);
+    }
+    echoRespnse(200, $response);
+});
+
+$app->get('/getCategoryById', function() use ($app) {
+    // check for required params
+    verifyRequiredParams(array('category_id'));
+    // reading post params
+    $shopId = $app->request()->get('category_id');
+    $response = array();
+    $db = new DbHandler();
+    $shop = $db->findCategoryById($shopId);
+    if ($shop != NULL) {
+        $response['id'] = $shop['id'];
+        $response['title'] = $shop['title'];
+        $response['c_date'] = $shop['c_date'];
+        $response['m_date'] = $shop['m_date'];
+    } else {
+        // unknown error occurred
+        $response['error'] = true;
+        $response['message'] = "An error occurred. No such shop by primary key ".$shopId;
     }
     echoRespnse(200, $response);
 });
@@ -446,7 +494,6 @@ $app->get('/getShopById', function() use ($app) {
     $db = new DbHandler();
     $shop = $db->findShopById($shopId);
     if ($shop != NULL) {
-        $response["error"] = false;
         $response['id'] = $shop['id'];
         $response['title'] = $shop['title'];
         $response['number_shop'] = $shop['number_shop'];
