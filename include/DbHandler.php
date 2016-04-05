@@ -360,6 +360,36 @@ class DbHandler {
         return $users;
     }
 
+    /**
+     * Fetching shop by id
+     */
+    public function findMallById($mall_id) {
+        $stmt = $this->conn->prepare("SELECT id, name, address, lat, lng, c_date, m_date FROM mall WHERE id = ?");
+        $stmt->bind_param("s", $mall_id);
+        if ($stmt->execute()) {
+            $stmt->store_result();
+            $num_rows = $stmt->num_rows;
+            if($num_rows > 0){
+                $stmt->bind_result($id, $name, $address, $lat, $lng, $c_date, $m_date);
+                $stmt->fetch();
+                $shop = array();
+                $shop["id"] = $id;
+                $shop["name"] = $name;
+                $shop["address"] = $address;
+                $shop["lat"] = $lat;
+                $shop["lng"] = $lng;
+                $shop["c_date"] = $c_date;
+                $shop["m_date"] = $m_date;
+                $stmt->close();
+                return $shop;
+            } else {
+                return NULL;
+            }
+        } else {
+            return NULL;
+        }
+    }
+
     //----------------- Category operations --------------------------
     /**
      * Fetching all mall
@@ -370,6 +400,33 @@ class DbHandler {
         $users = $stmt->get_result();
         $stmt->close();
         return $users;
+    }
+
+    /**
+     * Fetching shop by id
+     */
+        public function findCategoryById($category_id) {
+        $stmt = $this->conn->prepare("SELECT id, title, c_date, m_date FROM category WHERE id = ?");
+        $stmt->bind_param("s", $category_id);
+        if ($stmt->execute()) {
+            $stmt->store_result();
+            $num_rows = $stmt->num_rows;
+            if($num_rows > 0){
+                $stmt->bind_result($id, $title, $c_date, $m_date);
+                $stmt->fetch();
+                $shop = array();
+                $shop["id"] = $id;
+                $shop["title"] = $title;
+                $shop["c_date"] = $c_date;
+                $shop["m_date"] = $m_date;
+                $stmt->close();
+                return $shop;
+            } else {
+                return NULL;
+            }
+        } else {
+            return NULL;
+        }
     }
 
     //----------------- Shop operations --------------------------
