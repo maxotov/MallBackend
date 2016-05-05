@@ -371,6 +371,58 @@ $app->get('/categories', function() {
         $tmp["title"] = $cat["title"];
         $tmp["c_date"] = $cat["c_date"];
         $tmp["m_date"] = $cat["m_date"];
+        $tmp["parent"] = $cat["parent"];
+        array_push($response, $tmp);
+    }
+    echoRespnse(200, $response);
+});
+
+$app->get('/nestedCategories', function() {
+    $response = array();
+    $db = new DbHandler();
+    // fetching all
+    $result = $db->getRootCategories();
+    $response = array();
+    while ($cat = $result->fetch_assoc()) {
+        $tmp = array();
+        $tmp["id"] = $cat["id"];
+        $tmp["title"] = $cat["title"];
+        $tmp["c_date"] = $cat["c_date"];
+        $tmp["m_date"] = $cat["m_date"];
+        $tmp["parent"] = $cat["parent"];
+        $tmp["sub_categories"] = array();
+        $sub_categories = $db->getCategoriesByParent($cat["id"]);
+        while($category = $sub_categories -> fetch_assoc()){
+            $cats = array();
+            $cats["id"] = $category["id"];
+            $cats["title"] = $category["title"];
+            $cats["c_date"] = $category["c_date"];
+            $cats["m_date"] = $category["m_date"];
+            $cats["parent"] = $category["parent"];
+            array_push($tmp["sub_categories"], $cats);
+        }
+        array_push($response, $tmp);
+    }
+    echoRespnse(200, $response);
+});
+
+$app->get('/categoriesByParent', function() use ($app){
+    // check for required params
+    verifyRequiredParams(array('parent_id'));
+    // reading post params
+    $parentId = $app->request()->get('parent_id');
+    $response = array();
+    $db = new DbHandler();
+    // fetching all mall
+    $result = $db->getCategoriesByParent($parentId);
+    $response = array();
+    while ($cat = $result->fetch_assoc()) {
+        $tmp = array();
+        $tmp["id"] = $cat["id"];
+        $tmp["title"] = $cat["title"];
+        $tmp["c_date"] = $cat["c_date"];
+        $tmp["m_date"] = $cat["m_date"];
+        $tmp["parent"] = $cat["parent"];
         array_push($response, $tmp);
     }
     echoRespnse(200, $response);
@@ -389,6 +441,7 @@ $app->get('/getCategoryById', function() use ($app) {
         $response['title'] = $shop['title'];
         $response['c_date'] = $shop['c_date'];
         $response['m_date'] = $shop['m_date'];
+        $response['parent'] = $shop['parent'];
     } else {
         // unknown error occurred
         $response['error'] = true;
@@ -405,7 +458,7 @@ $app->get('/getCategoryById', function() use ($app) {
  */
 $app->post('/createShop', function() use ($app) {
     // check for required params
-    verifyRequiredParams(array('title', 'main_phone', 'description', 'user_id', 'category_id', 'mall_id'));
+    verifyRequiredParams(array('title', 'main_phone', 'description', 'user_id', 'category_ids', 'mall_id'));
 
     $response = array();
 
@@ -417,11 +470,11 @@ $app->post('/createShop', function() use ($app) {
     $site = $app->request->post('site');
     $description = $app->request->post('description');
     $user_id = $app->request->post('user_id');
-    $category_id = $app->request->post('category_id');
+    $category_ids = $app->request->post('category_ids');
     $mall_id = $app->request->post('mall_id');
 
     $db = new DbHandler();
-    $res = $db->createShop($title, $number_shop, $main_phone, $extra_phone, $site, $description, $user_id, $category_id, $mall_id);
+    $res = $db->createShop($title, $number_shop, $main_phone, $extra_phone, $site, $description, $user_id, $category_ids, $mall_id);
 
     if ($res == USER_CREATED_SUCCESSFULLY) {
         $response["error"] = false;
@@ -438,7 +491,7 @@ $app->post('/createShop', function() use ($app) {
  */
 $app->post('/updateShop', function() use ($app) {
     // check for required params
-    verifyRequiredParams(array('shop_id', 'title', 'main_phone', 'description', 'category_id', 'mall_id'));
+    verifyRequiredParams(array('shop_id', 'title', 'main_phone', 'description', 'category_ids', 'mall_id'));
 
     $response = array();
 
@@ -450,11 +503,11 @@ $app->post('/updateShop', function() use ($app) {
     $extra_phone = $app->request->post('extra_phone');
     $site = $app->request->post('site');
     $description = $app->request->post('description');
-    $category_id = $app->request->post('category_id');
+    $category_ids = $app->request->post('category_ids');
     $mall_id = $app->request->post('mall_id');
 
     $db = new DbHandler();
-    $res = $db->updateShop($shop_id, $title, $number_shop, $main_phone, $extra_phone, $site, $description, $category_id, $mall_id);
+    $res = $db->updateShop($shop_id, $title, $number_shop, $main_phone, $extra_phone, $site, $description, $category_ids, $mall_id);
 
     if ($res) {
         $response["error"] = false;
@@ -502,11 +555,19 @@ $app->get('/getShopById', function() use ($app) {
         $response['site'] = $shop['site'];
         $response['description'] = $shop['description'];
         $response['user_id'] = $shop['user_id'];
-        $response['category_id'] = $shop['category_id'];
         $response['mall_id'] = $shop['mall_id'];
         $response['c_date'] = $shop['c_date'];
         $response['m_date'] = $shop['m_date'];
         $response['view'] = $shop['view'];
+        $response["categories"] = array();
+        $categories = $db->getShopFullCategories($shopId);
+        while($category = $categories -> fetch_assoc()){
+            $cats = array();
+            $cats["id"] = $category["id"];
+            $cats["title"] = $category["title"];
+            $cats["parent"] = $category["parent"];
+            array_push($response["categories"], $cats);
+        }
     } else {
         // unknown error occurred
         $response['error'] = true;
@@ -536,11 +597,17 @@ $app->get('/findShopByUser', function() use ($app) {
         $tmp['site'] = $shop['site'];
         $tmp['description'] = $shop['description'];
         $tmp['user_id'] = $shop['user_id'];
-        $tmp['category_id'] = $shop['category_id'];
         $tmp['mall_id'] = $shop['mall_id'];
         $tmp['c_date'] = $shop['c_date'];
         $tmp['m_date'] = $shop['m_date'];
         $tmp['view'] = $shop['view'];
+        $tmp["categories"] = array();
+        $categories = $db->getShopCategories($shop['id']);
+        while($category = $categories -> fetch_assoc()){
+            $cats = array();
+            $cats["id"] = $category["category_id"];
+            array_push($tmp["categories"], $cats);
+        }
         array_push($response, $tmp);
     }
     echoRespnse(200, $response);
@@ -568,11 +635,19 @@ $app->get('/findShopByMall', function() use ($app) {
         $tmp['site'] = $shop['site'];
         $tmp['description'] = $shop['description'];
         $tmp['user_id'] = $shop['user_id'];
-        $tmp['category_id'] = $shop['category_id'];
         $tmp['mall_id'] = $shop['mall_id'];
         $tmp['c_date'] = $shop['c_date'];
         $tmp['m_date'] = $shop['m_date'];
         $tmp['view'] = $shop['view'];
+        $tmp["categories"] = array();
+        $categories = $db->getShopFullCategories($shop['id']);
+        while($category = $categories -> fetch_assoc()){
+            $cats = array();
+            $cats["id"] = $category["id"];
+            $cats["title"] = $category["title"];
+            $cats["parent"] = $category["parent"];
+            array_push($tmp["categories"], $cats);
+        }
         array_push($response, $tmp);
     }
     echoRespnse(200, $response);
@@ -600,11 +675,17 @@ $app->get('/findShopByCategory', function() use ($app) {
         $tmp['site'] = $shop['site'];
         $tmp['description'] = $shop['description'];
         $tmp['user_id'] = $shop['user_id'];
-        $tmp['category_id'] = $shop['category_id'];
         $tmp['mall_id'] = $shop['mall_id'];
         $tmp['c_date'] = $shop['c_date'];
         $tmp['m_date'] = $shop['m_date'];
         $tmp['view'] = $shop['view'];
+        $tmp["categories"] = array();
+        $categories = $db->getShopCategories($shop['id']);
+        while($category = $categories -> fetch_assoc()){
+            $cats = array();
+            $cats["id"] = $category["category_id"];
+            array_push($tmp["categories"], $cats);
+        }
         array_push($response["shops"], $tmp);
     }
     echoRespnse(200, $response);
@@ -632,11 +713,17 @@ $app->get('/findShopByTitle', function() use ($app) {
         $tmp['site'] = $shop['site'];
         $tmp['description'] = $shop['description'];
         $tmp['user_id'] = $shop['user_id'];
-        $tmp['category_id'] = $shop['category_id'];
         $tmp['mall_id'] = $shop['mall_id'];
         $tmp['c_date'] = $shop['c_date'];
         $tmp['m_date'] = $shop['m_date'];
         $tmp['view'] = $shop['view'];
+        $tmp["categories"] = array();
+        $categories = $db->getShopCategories($shop['id']);
+        while($category = $categories -> fetch_assoc()){
+            $cats = array();
+            $cats["id"] = $category["category_id"];
+            array_push($tmp["categories"], $cats);
+        }
         array_push($response["shops"], $tmp);
     }
     echoRespnse(200, $response);
