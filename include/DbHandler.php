@@ -402,23 +402,59 @@ class DbHandler {
         return $users;
     }
 
+    public function getRootCategories() {
+        $stmt = $this->conn->prepare("SELECT * FROM category WHERE parent=0");
+        $stmt->execute();
+        $users = $stmt->get_result();
+        $stmt->close();
+        return $users;
+    }
+
+    public function getShopCategories($shop_id) {
+        $stmt = $this->conn->prepare("SELECT * FROM shop_category WHERE shop_id=?");
+        $stmt->bind_param("s", $shop_id);
+        $stmt->execute();
+        $users = $stmt->get_result();
+        $stmt->close();
+        return $users;
+    }
+
+    public function getShopFullCategories($shop_id) {
+        $stmt = $this->conn->prepare("SELECT c.id, c.title, c.parent  FROM category c inner join shop_category s on c.id=s.category_id WHERE s.shop_id=?");
+        $stmt->bind_param("s", $shop_id);
+        $stmt->execute();
+        $users = $stmt->get_result();
+        $stmt->close();
+        return $users;
+    }
+
+    public function getCategoriesByParent($parent) {
+        $stmt = $this->conn->prepare("SELECT * FROM category WHERE parent=?");
+        $stmt->bind_param("s", $parent);
+        $stmt->execute();
+        $users = $stmt->get_result();
+        $stmt->close();
+        return $users;
+    }
+
     /**
      * Fetching shop by id
      */
         public function findCategoryById($category_id) {
-        $stmt = $this->conn->prepare("SELECT id, title, c_date, m_date FROM category WHERE id = ?");
+        $stmt = $this->conn->prepare("SELECT id, title, c_date, m_date, parent FROM category WHERE id = ?");
         $stmt->bind_param("s", $category_id);
         if ($stmt->execute()) {
             $stmt->store_result();
             $num_rows = $stmt->num_rows;
             if($num_rows > 0){
-                $stmt->bind_result($id, $title, $c_date, $m_date);
+                $stmt->bind_result($id, $title, $c_date, $m_date, $parent);
                 $stmt->fetch();
                 $shop = array();
                 $shop["id"] = $id;
                 $shop["title"] = $title;
                 $shop["c_date"] = $c_date;
                 $shop["m_date"] = $m_date;
+                $shop["parent"] = $parent;
                 $stmt->close();
                 return $shop;
             } else {
@@ -429,18 +465,66 @@ class DbHandler {
         }
     }
 
+    public function insertShopCategories($shop_id, $category_id) {
+        // insert query
+        $stmt = $this->conn->prepare("INSERT INTO `shop_category`(`shop_id`, `category_id`) VALUES (?,?)");
+        $stmt->bind_param("ss", $shop_id, $category_id);
+        $result = $stmt->execute();
+        $stmt->close();
+        if ($result) {
+            // Shop successfully inserted
+            return true;
+        } else {
+            // Failed to create shop
+            return false;
+        }
+    }
+
+    public function deleteShopCategory($shop_id, $category_id) {
+        $stmt = $this->conn->prepare("DELETE FROM shop_category WHERE shop_id = ? AND category_id = ?");
+        $stmt->bind_param("ii",$shop_id, $category_id);
+        $stmt->execute();
+        $num_affected_rows = $stmt->affected_rows;
+        $stmt->close();
+        return $num_affected_rows > 0;
+    }
+
+    private function deleteShopCategories($shop_id) {
+        $stmt = $this->conn->prepare("DELETE FROM shop_category WHERE shop_id = ?");
+        $stmt->bind_param("i",$shop_id);
+        $stmt->execute();
+        $num_affected_rows = $stmt->affected_rows;
+        $stmt->close();
+        return $num_affected_rows > 0;
+    }
+
+    private function isShopCategoryExists($shop_id, $category_id) {
+        $stmt = $this->conn->prepare("SELECT id from shop_category WHERE shop_id = ? AND category_id = ?");
+        $stmt->bind_param("ss", $shop_id, $category_id);
+        $stmt->execute();
+        $stmt->store_result();
+        $num_rows = $stmt->num_rows;
+        $stmt->close();
+        return $num_rows > 0;
+    }
+
     //----------------- Shop operations --------------------------
     /**
      * Creating new shop
      */
-    public function createShop($title, $number_shop, $main_phone, $extra_phone, $site, $desc, $userId, $categoryId, $mallId) {
+    public function createShop($title, $number_shop, $main_phone, $extra_phone, $site, $desc, $userId, $categoryIds, $mallId) {
       // insert query
-      $stmt = $this->conn->prepare("INSERT INTO `shop`(`title`, `number_shop`, `main_phone`, `extra_phone`, `site`, `description`, `user_id`, `category_id`, `mall_id`, `c_date`, `m_date`, `view`) VALUES (?,?,?,?,?,?,?,?,?,now(),now(),0)");
-      $stmt->bind_param("sssssssss", $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $userId, $categoryId, $mallId);
+      $stmt = $this->conn->prepare("INSERT INTO `shop`(`title`, `number_shop`, `main_phone`, `extra_phone`, `site`, `description`, `user_id`, `mall_id`, `c_date`, `m_date`, `view`) VALUES (?,?,?,?,?,?,?,?,now(),now(),0)");
+      $stmt->bind_param("ssssssss", $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $userId, $mallId);
       $result = $stmt->execute();
       $stmt->close();
-      if ($result) {
-         // Shop successfully inserted
+        if ($result) {
+          $created_shop_id=$this->conn->insert_id;
+          $parts = explode('_', $categoryIds);
+          for($i=0; $i<count($parts); $i++){
+              $this->insertShopCategories($created_shop_id, $parts[$i]);
+          }
+          // Shop successfully inserted
          return USER_CREATED_SUCCESSFULLY;
       } else {
          // Failed to create shop
@@ -451,10 +535,29 @@ class DbHandler {
     /**
      * Updating shop
      */
-    public function updateShop($shop_id, $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $categoryId, $mallId) {
-        $stmt = $this->conn->prepare("UPDATE shop set title = ?, number_shop = ?, main_phone = ?, extra_phone=?, site=?, description=?, category_id=?, mall_id=?, m_date=now() WHERE id = ?");
-        $stmt->bind_param("sssssssss", $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $categoryId, $mallId, $shop_id);
+    public function updateShop($shop_id, $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $categoryIds, $mallId) {
+        $stmt = $this->conn->prepare("UPDATE shop set title = ?, number_shop = ?, main_phone = ?, extra_phone=?, site=?, description=?, mall_id=?, m_date=now() WHERE id = ?");
+        $stmt->bind_param("ssssssss", $title, $number_shop, $main_phone, $extra_phone, $site, $desc, $mallId, $shop_id);
         $stmt->execute();
+        $parts = explode('_', $categoryIds);
+        $result = $this->getShopCategories($shop_id);
+        while ($shop = $result->fetch_assoc()) {
+            $to_delete = true;
+            for($i=0; $i<count($parts); $i++){
+                if($shop['category_id']==$parts[$i]){
+                   $to_delete = false;
+                }
+            }
+            if($to_delete){
+                $this->deleteShopCategory($shop_id, $shop['category_id']);
+            }
+        }
+        //adding new categories
+        for($i = 0; $i< count($parts); $i++){
+            if(!$this->isShopCategoryExists($shop_id, $parts[$i])){
+                $this->insertShopCategories($shop_id, $parts[$i]);
+            }
+        }
         $num_affected_rows = $stmt->affected_rows;
         $stmt->close();
         return $num_affected_rows > 0;
@@ -467,6 +570,7 @@ class DbHandler {
         $stmt = $this->conn->prepare("DELETE FROM shop WHERE id = ?");
         $stmt->bind_param("i",$shop_id);
         $stmt->execute();
+        $this->deleteShopCategories($shop_id);
         $num_affected_rows = $stmt->affected_rows;
         $stmt->close();
         return $num_affected_rows > 0;
@@ -520,13 +624,13 @@ class DbHandler {
      * Fetching shop by id
      */
     public function findShopById($shop_id) {
-        $stmt = $this->conn->prepare("SELECT id, title, number_shop, main_phone, extra_phone, site, description, user_id, category_id, mall_id, c_date, m_date, view FROM shop WHERE id = ?");
+        $stmt = $this->conn->prepare("SELECT id, title, number_shop, main_phone, extra_phone, site, description, user_id, mall_id, c_date, m_date, view FROM shop WHERE id = ?");
         $stmt->bind_param("s", $shop_id);
         if ($stmt->execute()) {
             $stmt->store_result();
             $num_rows = $stmt->num_rows;
             if($num_rows > 0){
-                $stmt->bind_result($id, $title, $number_shop, $main_phone, $extra_phone, $site, $description, $user_id, $category_id, $mall_id, $c_date, $m_date, $view);
+                $stmt->bind_result($id, $title, $number_shop, $main_phone, $extra_phone, $site, $description, $user_id, $mall_id, $c_date, $m_date, $view);
                 $stmt->fetch();
                 $shop = array();
                 $shop["id"] = $id;
@@ -537,7 +641,6 @@ class DbHandler {
                 $shop["site"] = $site;
                 $shop["description"] = $description;
                 $shop["user_id"] = $user_id;
-                $shop["category_id"] = $category_id;
                 $shop["mall_id"] = $mall_id;
                 $shop["c_date"] = $c_date;
                 $shop["m_date"] = $m_date;
