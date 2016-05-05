@@ -115,8 +115,8 @@ $app->post('/registerClient', function() use ($app) {
         $response["error"] = true;
         $response["message"] = "Oops! An error occurred while registereing";
     } else if($res == DEVICE_ALREADY_EXISTED){
-        $response["error"] = true;
-        $response["message"] = "Sorry, this device already existed";
+        $response["error"] = false;
+        $response["message"] = "This device already existed";
     }
     // echo json response
     echoRespnse(201, $response);
