@@ -58,7 +58,7 @@ $app->post('/getGoods',function(){
 
         array_push($response["goods"], $tmp);
     }
-   echoRespnse(200,$response);
+    echoRespnse(200,$response);
 });
 
 /**
@@ -68,7 +68,7 @@ $app->post('/insertGoods',function() use ($app){
 
     $response = array();
 
-     //reading post param
+    //reading post param
     $shop_id=$app->request()->post('shop_id');
     $description=$app->request()->post('description');
     $price=$app->request()->post('price');
@@ -177,6 +177,46 @@ $app->post('/updateGoods',function() use ($app){
 });
 
 /**
+ *  insert photos
+ */
+$app->post('/insertPhoto',function() use($app){
+
+    $goods_id=2;
+    
+    $imgs=array();
+    if (!isset($_FILES['uploads'])) {
+        $response["files"]=null;
+    }else{
+
+        $db = new DbHandler();
+
+        $task=$db->getImagePath($goods_id);
+
+        $mypath="../images/mall_".$task["m_id"]."/shop_".$task["s_id"]."/goods_".$goods_id;
+
+        if (!file_exists($mypath)) {
+            mkdir($mypath,0777,TRUE);
+        }
+
+        $files = $_FILES['uploads'];
+        $cnt = count($files['name']);
+        for($i=0;$i<$cnt;$i++){
+
+            if($files['error'][$i]===0){
+                $name=uniqid('img-'.date('Ymd'));
+                $extension=pathinfo($files['name'][$i],PATHINFO_EXTENSION);
+
+                $photo_id=$db->insertPhoto($files['name'][$i],$mypath.'/'. $name.'.'.$extension,$goods_id);
+                if (move_uploaded_file($files['tmp_name'][$i],$mypath.'/'. $name.'.'.$extension) === true) {
+                    $imgs[] = array('url' => $mypath.'/'. $name.'.'.$extension, 'name' => $files['name'][$i]);
+                }
+            }
+        }
+    }
+
+});
+
+/**
  * findByGoods
  */
 $app->post('/findGoodsById',function() use ($app){
@@ -187,17 +227,18 @@ $app->post('/findGoodsByShopId',function() use ($app){
 
 });
 
-$app->post('/findGoodsByPrice',function() use ($app){
+$app->get('/findGoodsByPrice',function() use ($app){
 
 });
 
-$app->post('/findGoodsByField',function() use ($app){
+$app->get('/findGoodsByField',function() use ($app){
 
     $response = array();
     $db = new DbHandler();
     //reading post param
-    $method=$app->request()->post('method');
-    $name_or_price=$app->request()->post('val');
+    $method=$app->request()->get('method');
+    $name_or_price=$app->request()->get('val');
+
 
     if($method=="fieldByName"){
         $result = $db->findGoodsByName($name_or_price);
@@ -217,11 +258,9 @@ $app->post('/findGoodsByField',function() use ($app){
 });
 
 function findGoodsHelper($result){
+    $response = array();
 
     $db = new DbHandler();
-
-    $response["error"] = false;
-    $response["goods"] = array();
 
     // looping through result and preparing tasks array
     while ($goods = $result->fetch_assoc()) {
@@ -232,8 +271,10 @@ function findGoodsHelper($result){
         $tmp["description"] = $goods["description"];
         $tmp["c_date"]=$goods["c_date"];
         $tmp["m_date"]=$goods["m_date"];
-        $tmp["uname"]=$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
-        $tmp["photos"]=array();
+        $tmp["view"]=$goods["view"];
+        $tmp["share"]=$goods["share"];
+        $tmp["discount"]=$goods["discount"];
+        $tmp["photoList"]=array();
 
         $result2=$db->getPhoto($goods["id"]);
 
@@ -241,13 +282,12 @@ function findGoodsHelper($result){
             $tmp2=array();
             $tmp2["id"]=$photo["id"];
             $tmp2["name"]=$photo["name"];
-            $tmp2["description"]='http://localhost/MallBackend/MallBackend'.substr($photo["description"], 2, strlen($photo["description"])-2);
+            $tmp2["description"]='http://192.168.1.75:8080/MallBackend'.substr($photo["description"], 2, strlen($photo["description"])-2);
             $tmp2["c_date"]=$photo["c_date"];
             $tmp2["m_date"]=$photo["m_date"];
-            array_push($tmp["photos"],$tmp2);
+            array_push($tmp["photoList"],$tmp2);
         }
-
-        array_push($response["goods"], $tmp);
+        array_push($response, $tmp);
     }
 
     return $response;
@@ -257,12 +297,26 @@ function echoRespnse($status_code, $response) {
     $app = \Slim\Slim::getInstance();
     // Http response code
     $app->status($status_code);
-
-    // setting response content type to json
-    $app->contentType('application/json');
-
-    echo json_encode($response);
+    echo json_encode_cyr($response);
 }
 
-    $app->run();
+function json_encode_cyr($str) {
+    $arr_replace_utf = array('\u0410', '\u0430','\u0411','\u0431','\u0412','\u0432',
+        '\u0413','\u0433','\u0414','\u0434','\u0415','\u0435','\u0401','\u0451','\u0416',
+        '\u0436','\u0417','\u0437','\u0418','\u0438','\u0419','\u0439','\u041a','\u043a',
+        '\u041b','\u043b','\u041c','\u043c','\u041d','\u043d','\u041e','\u043e','\u041f',
+        '\u043f','\u0420','\u0440','\u0421','\u0441','\u0422','\u0442','\u0423','\u0443',
+        '\u0424','\u0444','\u0425','\u0445','\u0426','\u0446','\u0427','\u0447','\u0428',
+        '\u0448','\u0429','\u0449','\u042a','\u044a','\u042b','\u044b','\u042c','\u044c',
+        '\u042d','\u044d','\u042e','\u044e','\u042f','\u044f');
+    $arr_replace_cyr = array('А', 'а', 'Б', 'б', 'В', 'в', 'Г', 'г', 'Д', 'д', 'Е', 'е',
+        'Ё', 'ё', 'Ж','ж','З','з','И','и','Й','й','К','к','Л','л','М','м','Н','н','О','о',
+        'П','п','Р','р','С','с','Т','т','У','у','Ф','ф','Х','х','Ц','ц','Ч','ч','Ш','ш',
+        'Щ','щ','Ъ','ъ','Ы','ы','Ь','ь','Э','э','Ю','ю','Я','я');
+    $str1 = json_encode($str);
+    $str2 = str_replace($arr_replace_utf,$arr_replace_cyr,$str1);
+    return $str2;
+}
+
+$app->run();
 ?>
