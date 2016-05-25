@@ -519,6 +519,29 @@ $app->post('/updateShop', function() use ($app) {
     // echo json response
     echoRespnse(201, $response);
 });
+
+/**
+ * Shop View Update
+ */
+$app->post('/updateShopView', function() use ($app) {
+    // check for required params
+    verifyRequiredParams(array('shop_id', 'view'));
+    $response = array();
+    // reading post params
+    $shop_id = $app->request->post('shop_id');
+    $shop_view = $app->request->post('view');
+    $db = new DbHandler();
+    $res = $db->updateShopView($shop_id, $shop_view);
+    if ($res) {
+        $response["error"] = false;
+        $response["message"] = "Shop View is successfully updated";
+    } else {
+        $response["error"] = true;
+        $response["message"] = "Oops! An error occurred while updating view of shop";
+    }
+    // echo json response
+    echoRespnse(201, $response);
+});
 /*
  * Delete shop
  */

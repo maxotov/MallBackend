@@ -6,8 +6,12 @@
 </head>
 <body>
 
-<form action="goodsRest.php/insertPhoto" enctype="multipart/form-data" method="post">
-    <input type="file" name="uploads[]" multiple="multiple"/><br/>
+<form action="goodsRest.php/insertGoods" enctype="multipart/form-data" method="post">
+    images: <input type="file" name="uploads[]" multiple="multiple"/><br/>
+    shop id: <input type="text" name="shop_id" value=""/><br/>
+    description: <input type="text" name="description" value=""/><br/>
+    price: <input type="text" name="price" value=""/><br/>
+    name: <input type="text" name="name" value=""/><br/>
     <input type="submit" value="Upload Now"/>
 </form>
 

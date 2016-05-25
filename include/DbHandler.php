@@ -564,6 +564,21 @@ class DbHandler {
     }
 
     /**
+     * @param $shop_id
+     * @param $new_value new view value to increment
+     * @return bool
+     * method for increment value
+     */
+    public function updateShopView($shop_id, $new_value) {
+        $stmt = $this->conn->prepare("UPDATE shop set view = ? WHERE id = ?");
+        $stmt->bind_param("ss", $new_value, $shop_id);
+        $stmt->execute();
+        $num_affected_rows = $stmt->affected_rows;
+        $stmt->close();
+        return $num_affected_rows > 0;
+    }
+
+    /**
      * Deleting shop
      */
     public function deleteShop($shop_id) {

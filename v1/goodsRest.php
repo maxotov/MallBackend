@@ -282,7 +282,7 @@ function findGoodsHelper($result){
             $tmp2=array();
             $tmp2["id"]=$photo["id"];
             $tmp2["name"]=$photo["name"];
-            $tmp2["description"]='http://192.168.1.75:8080/MallBackend'.substr($photo["description"], 2, strlen($photo["description"])-2);
+            $tmp2["description"]='http://192.168.1.70/MallBackend'.substr($photo["description"], 2, strlen($photo["description"])-2);
             $tmp2["c_date"]=$photo["c_date"];
             $tmp2["m_date"]=$photo["m_date"];
             array_push($tmp["photoList"],$tmp2);
